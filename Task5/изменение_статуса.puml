@@ -1,0 +1,32 @@
+@startuml
+actor Op as "Оператор"
+participant MES_FE as "MES Frontend (React)"
+participant MES_BE as "MES Backend (C#)"
+database MES_DB as "MES DB"
+database Cache as "Кеш (Redis)"
+
+Op -> MES_FE: "Взять заказ в работу"\n(order_id=O-123)
+MES_FE -> MES_BE: POST /orders/O-123/status\n{ new_status: MANUFACTURING_STARTED }
+MES_BE -> MES_DB: UPDATE orders\nSET status=MANUFACTURING_STARTED\nWHERE id=O-123
+MES_DB --> MES_BE: OK
+
+note over MES_BE
+Инвалидация кеша списков
+по старому и новому статусу
+end note
+
+MES_BE -> Cache: DEL orders:PRICE_CALCULATED:page=1
+MES_BE -> Cache: DEL orders:MANUFACTURING_STARTED:page=1
+MES_BE --> MES_FE: 200 OK
+MES_FE --> Op: Статус обновлён
+
+Op -> MES_FE: Обновить дашборд
+MES_FE -> MES_BE: GET /orders?status=PRICE_CALCULATED
+MES_BE -> Cache: GET orders:PRICE_CALCULATED:page=1
+Cache --> MES_BE: MISS
+MES_BE -> MES_DB: SELECT * FROM orders\nWHERE status=PRICE_CALCULATED\nORDER BY created_at DESC LIMIT ...
+MES_DB --> MES_BE: новый список
+MES_BE -> Cache: SET orders:PRICE_CALCULATED:page=1\nTTL=30-60 сек
+MES_BE --> MES_FE: новый список
+MES_FE --> Op: Показать обновлённый список
+@enduml

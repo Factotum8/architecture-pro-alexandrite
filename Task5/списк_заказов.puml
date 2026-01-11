@@ -1,0 +1,24 @@
+@startuml
+actor Op as "Оператор"
+participant MES_FE as "MES Frontend (React)"
+participant MES_BE as "MES Backend (C#)"
+database Cache as "Кеш (Redis)"
+database MES_DB as "MES DB"
+
+Op -> MES_FE: Открыть дашборд заказов\n(status=PRICE_CALCULATED)
+MES_FE -> MES_BE: GET /orders?status=PRICE_CALCULATED
+MES_BE -> Cache: GET orders:PRICE_CALCULATED:page=1
+
+alt Cache HIT
+    Cache --> MES_BE: список заказов
+    MES_BE --> MES_FE: список заказов (из кеша)
+    MES_FE --> Op: Показать список
+else Cache MISS
+    Cache --> MES_BE: null
+    MES_BE -> MES_DB: SELECT * FROM orders\nWHERE status=PRICE_CALCULATED\nORDER BY created_at DESC LIMIT ...
+    MES_DB --> MES_BE: результат
+    MES_BE -> Cache: SET orders:PRICE_CALCULATED:page=1\nTTL=30-60 сек
+    MES_BE --> MES_FE: список заказов (из БД)
+    MES_FE --> Op: Показать список
+end
+@enduml

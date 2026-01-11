@@ -1,0 +1,10 @@
+Flask
+requests
+deprecated
+
+
+opentelemetry-api  #api otel
+opentelemetry-sdk #sdk otel
+opentelemetry-instrumentation-flask #framework instrumentation
+opentelemetry-instrumentation-requests #framework instrumentation
+opentelemetry-exporter-jaeger
